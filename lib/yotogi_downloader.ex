@@ -1,8 +1,9 @@
 defmodule YotogiDownloader do
   require Logger
 
-  @base_url    "http://easy2life.sakura.ne.jp"
-  @export_path "articles/"
+  @base_url       "http://easy2life.sakura.ne.jp"
+  @export_path    "articles/"
+  @retry_interval 5000
 
   alias YotogiDownloader.HttpClient, as: YH
 
@@ -34,6 +35,7 @@ defmodule YotogiDownloader do
         article_pathes
       {:DOWN, _ref, :process, ^child, reason} ->
         Logger.info("error: #{inspect(reason)}")
+        :timer.sleep(@retry_interval)
         fetch_article_pathes(collection_number, pid)
       error ->
         Logger.info("unexpected error: #{inspect(error)}")
@@ -57,6 +59,7 @@ defmodule YotogiDownloader do
         Logger.info("success to fetch and export: #{url}")
       {:DOWN, _ref, :process, ^child, reason} ->
         Logger.info("error: #{inspect(reason)}")
+        :timer.sleep(@retry_interval)
         fetch_and_export_article(path, pid, collection_number)
       error ->
         Logger.info("unexpected error: #{inspect(error)}")
