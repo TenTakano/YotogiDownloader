@@ -7,6 +7,9 @@ defmodule YotogiDownloader do
 
   alias YotogiDownloader.HttpClient, as: YH
 
+  def download_spawn(from, to) do
+    Enum.each(from..to, &download_spawn/1)
+  end
   def download_spawn(collection_number) do
     pid = self()
     fetch_article_pathes(collection_number, pid)
