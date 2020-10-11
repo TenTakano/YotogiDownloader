@@ -1,48 +1,65 @@
 defmodule YotogiDownloader do
   require Logger
 
+  @base_url    "http://easy2life.sakura.ne.jp"
+  @export_path "articles/"
+
   alias YotogiDownloader.HttpClient, as: YH
 
-  def download(from, to) do
-    Enum.each(from..to, &download/1)
+  def download_spawn(collection_number) do
+    pid = self()
+    fetch_article_pathes(collection_number, pid)
+    |> Enum.each(&fetch_and_export_article(&1, pid, collection_number))
   end
-  def download(page_number) do
-    case get_index_page(page_number) do
-      {:ok, index_page} ->
-        index_page
-        |> get_article_pathes()
-        |> Enum.each(&execute_download(&1, page_number))
+
+  def fetch_article_pathes(collection_number, pid) do
+    {child, _} =
+      spawn_monitor(fn ->
+        url = @base_url <> "/yotogi2/index.php/#{collection_number}"
+        %{body: body} = HTTPoison.get!(url, [], [recv_timeout: 10000])
+
+        article_pathes =
+          body
+          |> String.split("<tr")
+          |> Enum.map(&Regex.run(~r/<h2><a href=\"(.*)\">.*<\/a><\/h2>/, &1))
+          |> Enum.reject(&is_nil/1)
+          |> Enum.map(&Enum.at(&1, 1))
+
+        exit({:ok, url, article_pathes})
+      end)
+
+    receive do
+      {:DOWN, _ref, :process, ^child, {:ok, fetched_url, article_pathes}} ->
+        Logger.info("success to fetch: #{fetched_url}")
+        article_pathes
+      {:DOWN, _ref, :process, ^child, reason} ->
+        Logger.info("error: #{inspect(reason)}")
+        fetch_article_pathes(collection_number, pid)
       error ->
-        inspect(error)
+        Logger.info("unexpected error: #{inspect(error)}")
     end
   end
 
-  def get_index_page(page_number) do
-    YH.get_page("/yotogi2/index.php/#{page_number}")
-  end
+  def fetch_and_export_article(path, pid, collection_number) do
+    url = @base_url <> path
 
-  def get_article_pathes(body) do
-    body
-    |> String.split("<tr")
-    |> Enum.map(&Regex.run(~r/<h2><a href=\"(.*)\">.*<\/a><\/h2>/, &1))
-    |> Enum.reject(&is_nil/1)
-    |> Enum.map(&Enum.at(&1, 1))
-  end
+    {child, _} =
+      spawn_monitor(fn ->
+        %{body: body} = HTTPoison.get!(url, [], [recv_timeout: 10000])
 
-  def execute_download(path, page_number) do
-    case get_article(path) do
-      {:ok, article} -> to_file(article, page_number)
-      {:error, _} -> Logger.info("failed to get article")
+        [_, title, author] = Regex.run(~r/<title>(.*)\t\t\t\t\t作者:(.*)<\/title>/, body)
+        file_name = @export_path <> "作品集#{collection_number}_#{title}_#{author}.html"
+        File.write(file_name, body)
+      end)
+
+    receive do
+      {:DOWN, _ref, :process, ^child, :normal} ->
+        Logger.info("success to fetch and export: #{url}")
+      {:DOWN, _ref, :process, ^child, reason} ->
+        Logger.info("error: #{inspect(reason)}")
+        fetch_and_export_article(path, pid, collection_number)
+      error ->
+        Logger.info("unexpected error: #{inspect(error)}")
     end
-  end
-
-  def get_article(path) do
-    YH.get_page(path)
-  end
-
-  def to_file(article, page_number) do
-    [_, title, author] = Regex.run(~r/<title>(.*)\t\t\t\t\t作者:(.*)<\/title>/, article)
-    file_name = "articles/作品集#{page_number}_#{title}_#{author}.html"
-    File.write(file_name, article)
   end
 end
