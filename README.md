@@ -1,21 +1,19 @@
 # YotogiDownloader
 
-**TODO: Add description**
+某サイトが閉鎖になる運びとなったので，作品が消えてしまうのが忍びなく手元に残しておきたかったのでダウンローダを作りました．プログラム経験の無い人が使うのはハードル高いかも．わかる人だけ良識の範囲で使ってください．
 
-## Installation
+## 使い方
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `yotogi_downloader` to your list of dependencies in `mix.exs`:
+このダウンローダーはElixirと言う言語で書かれており，Elixirの実行環境が必要です．「Elixir インストール windows(or mac/linux?)」あたりで検索して環境を整えてください．実行環境が整えばターミナルで以下のコマンドを実行すればダウンロードが始まります．
 
-```elixir
-def deps do
-  [
-    {:yotogi_downloader, "~> 0.1.0"}
-  ]
-end
+```
+mix download 1 51
 ```
 
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at [https://hexdocs.pm/yotogi_downloader](https://hexdocs.pm/yotogi_downloader).
+downloadの後ろは作品集の範囲です．コマンドだと作品集1～作品集51まで，2020/10/12現在だと全てがダウンロード対象となります．終わるまでゆっくりおはぎでも食べて待ちましょう．
 
+各リクエストに失敗したときはデフォルトで5秒間のインターバルをおいて再リクエストをするようになっています．`lib/yotogi_downloader.ex`の`@retry_interval`を変える事でこのリクエスト間隔が調整できます．
+
+## 注意
+
+当り前ですが，某サイトは管理人さんの好意で成り立っているサイトです．ダウンロードをするタイミングや，ダウンロードの速度には注意してください．
