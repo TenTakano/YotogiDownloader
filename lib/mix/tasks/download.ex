@@ -3,6 +3,8 @@ defmodule Mix.Tasks.Download do
   require Logger
 
   def run(args) do
+    Application.ensure_all_started(:hackney)
+
     with(
       [from_str, to_str] <- args,
       {from, ""} <- Integer.parse(from_str),
