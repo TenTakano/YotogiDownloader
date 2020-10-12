@@ -4,6 +4,8 @@ defmodule YotogiDownloader do
   @base_url       "http://easy2life.sakura.ne.jp"
   @export_path    "articles/"
   @retry_interval 5000
+  @trial_limit    10
+  @error_log_path "error.log"
 
   alias YotogiDownloader.HttpClient, as: YH
 
@@ -45,7 +47,7 @@ defmodule YotogiDownloader do
     end
   end
 
-  def fetch_and_export_article(path, pid, collection_number) do
+  def fetch_and_export_article(path, pid, collection_number, trial \\ 0) do
     url = @base_url <> path
 
     {child, _} =
@@ -62,8 +64,13 @@ defmodule YotogiDownloader do
         Logger.info("success to fetch and export: #{url}")
       {:DOWN, _ref, :process, ^child, reason} ->
         Logger.info("error: #{inspect(reason)}")
-        :timer.sleep(@retry_interval)
-        fetch_and_export_article(path, pid, collection_number)
+        if trial == @trial_limit do
+          Logger.info("trial num reached to the limit")
+          File.write(@error_log_path, url <> "\n", [:append])
+        else
+          :timer.sleep(@retry_interval)
+          fetch_and_export_article(path, pid, collection_number, trial + 1)
+        end
       error ->
         Logger.info("unexpected error: #{inspect(error)}")
     end
